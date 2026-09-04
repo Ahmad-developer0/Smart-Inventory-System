@@ -12,4 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // This is an SSR app: it needs a running server, not just static files.
+  // The preset defaults to Cloudflare, which emits output Vercel can't serve —
+  // Vercel then finds no index.html at the root and returns 404: NOT_FOUND.
+  // The vercel preset writes .vercel/output/, which Vercel deploys directly.
+  nitro: { preset: "vercel" },
 });

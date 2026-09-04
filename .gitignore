@@ -32,3 +32,6 @@ dist-ssr
 *.sw?
 *.env
 .env 
+
+# Nitro/Vercel build output
+.vercel

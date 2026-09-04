@@ -21,7 +21,6 @@ dist-ssr
 .dev.vars
 
 # Editor directories and files
-.vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -31,4 +30,7 @@ dist-ssr
 *.sln
 *.sw?
 *.env
-.env 
+
+# Nitro/Vercel build output
+.vercel
+config.bat

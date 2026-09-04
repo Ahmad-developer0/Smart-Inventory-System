@@ -1,0 +1,175 @@
+# MET Store — project guide for Claude
+
+## What this software is
+
+MET Store is a mobile-first inventory management web app for a small retail business operating multiple stores. It lets an administrator manage products, categories, and stores; see inventory health and simple finance calculations; and receive activity/low-stock notifications. The UI is designed as a narrow mobile application even on desktop, based on the supplied Uizard reference.
+
+The app's money display is Pakistani rupees (`PKR`, shown as `Rs`).
+
+## Main user workflows
+
+1. **Sign in** at `/login`.
+   - Demo admin: `admin` / `admin123`
+   - Demo viewer: `viewer` / `viewer123`
+   - Admins can add, edit, and delete inventory data. Viewers are read-only.
+2. **Dashboard** (`/`) shows category/store/product summaries and the low-stock count.
+3. **Products** (`/products`) supports search and filters (category, status, and low-stock only). A row opens `/products/:productId`, where an admin can edit or delete the product.
+4. **Categories** (`/categories`) supports search and sorting. A category opens `/categories/:categoryId`, which lists that category's products in the product-list UI.
+5. **Stores** (`/stores`) supports search and open/closed filtering. A store opens `/stores/:storeId` with its inventory and summary metrics.
+6. **Add / edit** (`/add`) has forms for products, categories, and stores. Product editing is selected with `?type=product&id=:id`.
+7. **Finances** (`/finances`) calculates purchase value, potential selling value, profit, and margin from products and their current stock.
+8. **Notifications** (`/notifications`) records additions and low-stock alerts. **Settings** (`/settings`) shows profile/role information, notification preferences, and logout.
+9. **Manage users** (`/admin-users`, linked from Settings, admin-only) creates new accounts and changes any user's `admin`/`viewer` role, via server-side functions using the service-role key — no direct database editing needed.
+
+## Technology and architecture
+
+| Area | Choice | Notes |
+| --- | --- | --- |
+| UI | React 19 + TypeScript | Component source is under `src/`. |
+| Application framework | TanStack Start + TanStack Router | File-based routes live in `src/routes/`; generated `src/routeTree.gen.ts` must not be edited. |
+| Server/client data cache | TanStack Query | Query client is configured in `src/router.tsx`; typical data freshness is 30 seconds. |
+| Styling | Tailwind CSS v4, Radix UI, Lucide icons | Global tokens and styles live in `src/styles.css`. |
+| Backend | Supabase (Postgres + Auth) | Client is in `src/integrations/supabase/client.ts`. |
+| Offline/demo behavior | `localStorage` data store | Used automatically when Supabase is unavailable or denied by RLS. |
+| Validation | Zod | Add/edit form validation is in `src/routes/add.tsx`. |
+| Build tooling | Vite | Commands are defined in `package.json`. |
+
+## Important directories and files
+
+```text
+src/
+  routes/                         Route components and page-specific UI
+  components/met/                 MET-specific layout and reusable UI pieces
+  components/ui/                  Generic Radix/shadcn-style primitives
+  lib/db-service.ts               All product/category/store queries and mutations
+  lib/local-db.ts                 localStorage seed data and fallback CRUD
+  lib/auth-store.ts               Local role/session state and demo credentials
+  lib/notifications-store.ts      Notification persistence, preference state, alerts
+  lib/currency.ts                 PKR formatting
+  integrations/supabase/          Supabase client and generated database TypeScript types
+supabase/migrations/              Database schema migration
+Remaining/                        Original feature notes and visual-reference images
+```
+
+## Routing conventions
+
+This is **TanStack Router**, not Next.js. Keep routes in `src/routes` and use `createFileRoute`.
+
+| Route file | URL | Purpose |
+| --- | --- | --- |
+| `index.tsx` | `/` | Dashboard |
+| `login.tsx` | `/login` | Authentication / demo login |
+| `products.tsx` | `/products` | Product list |
+| `products_.$productId.tsx` | `/products/:productId` | Product detail |
+| `categories.tsx` | `/categories` | Category list |
+| `categories_.$categoryId.tsx` | `/categories/:categoryId` | Category products |
+| `stores.tsx` | `/stores` | Store list |
+| `stores_.$storeId.tsx` | `/stores/:storeId` | Store detail |
+| `add.tsx` | `/add` | Create or edit forms |
+| `finances.tsx` | `/finances` | Inventory finance overview |
+| `notifications.tsx` | `/notifications` | Notification inbox |
+| `settings.tsx` | `/settings` | Account and notification settings |
+| `admin-users.tsx` | `/admin-users` | Admin-only: create users and manage admin/viewer roles |
+
+`src/routes/__root.tsx` contains the global Query provider, auth redirect logic, toast outlet, document metadata, and the required `<Outlet />`. Do not remove the outlet. `src/routeTree.gen.ts` is generated by the router plugin; never hand-edit it.
+
+## Data model
+
+The Supabase schema migration is at `supabase/migrations/20260605123809_ef0852b3-9547-4bc7-8404-f5cf33978931.sql`. TypeScript definitions mirror it in `src/integrations/supabase/types.ts`.
+
+```text
+categories  1 ─── * products * ─── * stores
+                 through product_stores
+
+products   1 ─── * orders
+stores     1 ─── * orders
+auth.users 1 ─── 1 profiles
+```
+
+- `categories`: name, description, icon, optional image.
+- `products`: category, purchase/sale prices, SKU, stock quantity, active/inactive status, optional image.
+- `stores`: name, location, image URLs, employee count, initial item count, open/closed status.
+- `product_stores`: many-to-many product assignment to stores.
+- `orders`: product/store/quantity/status; currently used primarily for store detail counts.
+- `profiles`: Supabase user profile and role (`admin` or `viewer`).
+
+The financial calculations are inventory-value estimates, not an accounting ledger:
+
+```text
+total purchase = purchase price × stock quantity
+total selling  = sale price × stock quantity
+profit         = total selling − total purchase
+margin (%)     = profit / total selling × 100
+```
+
+## Data-access rules
+
+- Put product, category, store, and finance data logic in `src/lib/db-service.ts`; pages should consume its hooks rather than query Supabase directly.
+- Each data hook attempts Supabase first. On a missing configuration, unavailable connection, or failed RLS request, it uses `localDb` instead so the application remains usable. An empty-but-successful Supabase result is a legitimate "no rows yet" state and must **not** fall back to `localDb` — only real errors should.
+- `seedDatabaseIfEmpty()` in `db-service.ts` is intentionally a no-op (demo seeding was removed once real data replaced it). Do not restore it to auto-insert placeholder rows into a live database.
+- Browser fallback data is persisted in `localStorage` under `met_local_db_v2` and starts **empty** — it is an offline/outage safety net that holds real user-entered data, not a seeded demo catalog. Do not add placeholder seed rows back into `local-db.ts`'s `seed()`.
+- Local fallback IDs begin with `prod-`, `cat-`, or `store-`. `isLocalId()` in `db-service.ts` protects CRUD operations from trying to write those IDs to Supabase.
+- After a mutation, invalidate the related TanStack Query cache keys and add an activity notification, following the existing mutation hooks.
+
+## Authentication and permissions
+
+- `auth-store.ts` maintains the current role in `localStorage` key `met_role` and synchronizes it from a Supabase profile when a Supabase session exists.
+- The root route redirects unauthenticated users to `/login`, and redirects authenticated users away from `/login`.
+- The login page attempts Supabase password authentication first. If that fails, the two demo accounts still work locally.
+- UI permissions are role-based only: `admin` has full access; `viewer` should not see mutation controls. Preserve these checks when adding new write actions.
+- Database RLS policies grant authenticated users broad CRUD access to inventory tables (reads require `authenticated`, not just the anon/publishable key — an unauthenticated request correctly gets zero rows, not an error). This is acceptable for the current demo but is not tenant isolation; tighten policies before a multi-business production release.
+- `profiles` RLS only lets a user read/update **their own** row (`auth.uid() = id`), so no client-side query can list or edit other users' roles. `/admin-users` and its server functions in `src/lib/api/admin-users.functions.ts` are the only sanctioned way to do that: each handler re-checks the caller's own profile is `admin` (via the RLS-scoped `context.supabase` from `requireSupabaseAuth`) before using the service-role `supabaseAdmin` client (`src/integrations/supabase/client.server.ts`) to read/write other users. Never call `supabaseAdmin` directly from client code or a route component.
+
+## Notifications
+
+Notifications are client-side and stored in `localStorage` (`met_notifications`), not in Supabase.
+
+- Adding a product, category, or store creates an in-app notification.
+- A low-stock notification is created once per product when its stock drops below `5` (`LOW_STOCK_THRESHOLD`). A product becomes eligible for another alert only after being restocked above that threshold.
+- Preferences for email, push, and SMS are stored locally. Push can request browser permission and display a browser notification; email and SMS currently only represent UI preferences—there is no delivery service.
+
+## Environment configuration
+
+The app needs these environment variables for live Supabase access. Values are already supplied locally; never copy secrets into source code, documentation, or chat output.
+
+```text
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+```
+
+These two are the single source of truth for both the browser and server/SSR code (`import.meta.env.VITE_*`, with `process.env.VITE_*` preferred server-side when present — see `src/integrations/supabase/client.ts`). Do not reintroduce unprefixed duplicates. The service-role key (`SUPABASE_SERVICE_ROLE_KEY`, server-only, used by `client.server.ts` for admin operations like `/admin-users`) is a separate secret and must never get a `VITE_` prefix. The project can still be explored with demo users and local data if Supabase is not available.
+
+## Development commands
+
+```bash
+npm run dev       # start Vite development server
+npm run build     # make a production build
+npm run preview   # preview the production build
+npm run lint      # run ESLint
+npm run format    # format all project files with Prettier
+```
+
+## Implementation guidelines for future changes
+
+1. Maintain the mobile-first MET visual language: use `AppShell`, `MobileFrame`, top app bar, side drawer, and bottom navigation where appropriate.
+2. Reuse components in `src/components/met` before creating a new one. Generic UI primitives belong in `src/components/ui`.
+3. Use the `@/` path alias for imports.
+4. Use existing data hooks and mutation patterns. Keep Supabase and local fallback behavior in sync whenever adding a new persisted entity or field.
+5. Preserve graceful demo mode: never make a page fail merely because Supabase is misconfigured or anonymous access is unavailable.
+6. Use `formatPKR` from `src/lib/currency.ts` for currency amounts and keep all stored price values as numeric PKR amounts.
+7. Apply admin-only UI guards to every data-changing control; viewers remain read-only.
+8. Update the migration, generated TypeScript database types, local fallback types (`local-db.ts`), and `db-service.ts` together when changing the schema. Do not add seed/placeholder data anywhere in that path.
+9. Do not expose environment values, Supabase keys, or user data in logs or documentation.
+
+## Current product boundaries and known limitations
+
+- The app works fully in demo/local mode, but local changes stay in that browser and are not shared with other users.
+- Supabase is designed to be the persistent source of truth. The local fallback is intentionally a resilience/demo layer, not synchronization.
+- Finance values are derived from inventory stock and prices. They do not represent sales, expenses, payments, or real-time order revenue.
+- Product images and store image fields exist in the schema but there is no asset-upload workflow.
+- Orders are stored in the schema but the UI currently focuses on inventory rather than order entry/fulfilment.
+- Notification history and preferences are not shared across devices because they live in local storage.
+
+## Before handing changes back
+
+Run `npm run lint` and `npm run build`. Verify at least one admin flow (add/edit product) and one viewer flow (read-only navigation), ideally once with live Supabase configuration and once with the local fallback available.

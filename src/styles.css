@@ -1,0 +1,102 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@source "../src";
+
+@custom-variant dark (&:is(.dark *));
+
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-deep: var(--primary-deep);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-drawer: var(--drawer);
+  --color-badge-active: var(--badge-active);
+  --color-warning: var(--warning);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  /* Backgrounds */
+  --background: oklch(0.972 0.003 286);            /* #F4F4F6 */
+  --foreground: oklch(0.18 0.03 280);              /* #1A1A2E */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.03 280);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.03 280);
+
+  /* Brand purples */
+  --primary: oklch(0.43 0.27 295);                 /* #5B00D6 */
+  --primary-foreground: oklch(1 0 0);
+  --primary-deep: oklch(0.36 0.25 295);            /* #4400B5 drawer */
+  --drawer: oklch(0.36 0.25 295);
+  --badge-active: oklch(0.52 0.24 295);            /* #7C3AED */
+
+  /* Lavender accents */
+  --accent: oklch(0.92 0.05 305);                  /* #E8D5FF */
+  --accent-foreground: oklch(0.36 0.25 295);
+  --accent-soft: oklch(0.93 0.04 300);             /* #DDD6FE */
+
+  --secondary: oklch(0.96 0.01 286);
+  --secondary-foreground: oklch(0.18 0.03 280);
+
+  --muted: oklch(0.96 0.005 286);
+  --muted-foreground: oklch(0.5 0.02 280);         /* #6B7280 */
+
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+  --warning: oklch(0.73 0.17 60);
+
+  --border: oklch(0.92 0.01 286);
+  --input: oklch(0.94 0.01 286);
+  --ring: oklch(0.43 0.27 295);
+}
+
+.dark {
+  --background: oklch(0.18 0.03 280);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.22 0.04 285);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.22 0.04 285);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.55 0.27 295);
+  --primary-foreground: oklch(1 0 0);
+  --accent: oklch(0.4 0.15 295);
+  --accent-foreground: oklch(0.98 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { font-family: var(--font-sans); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+}

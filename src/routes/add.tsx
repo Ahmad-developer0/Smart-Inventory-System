@@ -104,6 +104,67 @@ const inputCls = "w-full h-11 px-4 rounded-xl bg-muted border border-transparent
 const textareaCls = "w-full px-4 py-3 rounded-xl bg-muted border border-transparent focus:border-primary focus:bg-card outline-none text-sm min-h-[100px] disabled:opacity-50";
 const saveBtn = "w-full h-12 rounded-full bg-primary text-primary-foreground font-bold mt-2 disabled:opacity-50";
 
+// No object-storage bucket exists yet, so the picked file is inlined as a data
+// URL and stored directly in the image_url text column.
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function useImagePicker(initial?: string | null) {
+  const [imageUrl, setImageUrl] = useState<string | null>(initial ?? null);
+
+  async function onImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error("Image is too large (max 2MB).");
+      e.target.value = "";
+      return;
+    }
+    try {
+      setImageUrl(await fileToDataUrl(file));
+    } catch {
+      toast.error("Couldn't read that image file.");
+    }
+  }
+
+  return { imageUrl, setImageUrl, onImageChange };
+}
+
+function ImageField({
+  imageUrl,
+  onImageChange,
+  isLoading,
+}: {
+  imageUrl: string | null;
+  onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isLoading: boolean;
+}) {
+  return (
+    <Field label="Image">
+      <div className="space-y-2">
+        {imageUrl && (
+          <img src={imageUrl} alt="Preview" className="h-24 w-24 rounded-xl object-cover border border-border/50" />
+        )}
+        <input
+          type="file"
+          disabled={isLoading}
+          accept="image/*"
+          onChange={onImageChange}
+          className={inputCls + " py-2.5"}
+        />
+      </div>
+    </Field>
+  );
+}
+
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   description: z.string().max(2000).optional(),
@@ -124,11 +185,15 @@ function ProductForm({ editId }: { editId?: string }) {
   const { data: editProduct, isLoading: editLoading } = useProduct(editId ?? "__none__");
   const addProductMutation = useAddProduct();
   const updateProductMutation = useUpdateProduct();
+  const { imageUrl, setImageUrl, onImageChange } = useImagePicker();
 
-  // Pre-fill the store checkboxes once the product loads in edit mode
+  // Pre-fill the store checkboxes and existing image once the product loads in edit mode
   useEffect(() => {
     if (isEdit && editProduct?.storeIds) {
       setStoreIds(editProduct.storeIds);
+    }
+    if (isEdit && editProduct) {
+      setImageUrl(editProduct.image || null);
     }
   }, [isEdit, editProduct]);
 
@@ -165,6 +230,7 @@ function ProductForm({ editId }: { editId?: string }) {
       stock_quantity: parsed.data.stockQuantity,
       sku: parsed.data.sku || undefined,
       storeIds: parsed.data.storeIds,
+      image_url: imageUrl || undefined,
     };
 
     if (isEdit && editId) {
@@ -184,6 +250,7 @@ function ProductForm({ editId }: { editId?: string }) {
           toast.success("Product saved successfully!");
           form.reset();
           setStoreIds([]);
+          setImageUrl(null);
         },
         onError: (err: any) => toast.error(err.message || "Failed to save product."),
       });
@@ -253,7 +320,7 @@ function ProductForm({ editId }: { editId?: string }) {
           })}
         </div>
       </Field>
-      <Field label="Image"><input type="file" disabled={isLoading} accept="image/*" className={inputCls + " py-2.5"} /></Field>
+      <ImageField imageUrl={imageUrl} onImageChange={onImageChange} isLoading={isLoading} />
       <Field label="SKU (optional)">
         <input name="sku" defaultValue={editProduct?.sku ?? ""} disabled={isLoading} className={inputCls} />
       </Field>

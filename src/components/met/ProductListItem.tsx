@@ -10,6 +10,7 @@ export type ProductListEntry = {
   stock: number;
   stores: number;
   status: "active" | "inactive";
+  image?: string;
 };
 
 export function ProductListItem({ product }: { product: ProductListEntry }) {
@@ -20,8 +21,12 @@ export function ProductListItem({ product }: { product: ProductListEntry }) {
       className="block py-4 hover:bg-muted/40 -mx-2 px-2 rounded-xl transition-colors"
     >
       <div className="flex gap-3">
-        <div className="h-20 w-20 rounded-xl bg-accent flex items-center justify-center shrink-0">
-          <Package className="h-8 w-8 text-primary-deep" />
+        <div className="h-20 w-20 rounded-xl bg-accent flex items-center justify-center shrink-0 overflow-hidden">
+          {product.image ? (
+            <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+          ) : (
+            <Package className="h-8 w-8 text-primary-deep" />
+          )}
         </div>
         <div className="flex-1 min-w-0 text-sm">
           <p className="text-muted-foreground">

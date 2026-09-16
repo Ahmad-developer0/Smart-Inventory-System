@@ -327,6 +327,7 @@ export const localDb = {
     stock_quantity: number;
     sku?: string;
     storeIds?: string[];
+    image_url?: string;
   }) {
     const data = read();
     const row: LProduct = {
@@ -339,7 +340,7 @@ export const localDb = {
       sku: product.sku ?? "",
       stock_quantity: product.stock_quantity,
       status: "active",
-      image_url: null,
+      image_url: product.image_url ?? null,
       storeIds: product.storeIds ?? [],
       created_at: nowIso(),
     };
@@ -358,6 +359,7 @@ export const localDb = {
       stock_quantity: number;
       sku?: string;
       storeIds?: string[];
+      image_url?: string;
     }
   ) {
     const data = read();
@@ -374,6 +376,7 @@ export const localDb = {
         stock_quantity: patch.stock_quantity,
         sku: patch.sku ?? "",
         storeIds: patch.storeIds ?? p.storeIds,
+        image_url: patch.image_url ?? p.image_url,
       };
       return updated;
     });

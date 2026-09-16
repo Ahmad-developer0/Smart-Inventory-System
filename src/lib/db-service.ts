@@ -473,6 +473,7 @@ export function useAddProduct() {
       stock_quantity: number;
       sku?: string;
       storeIds?: string[];
+      image_url?: string;
     }) =>
       withFallback(async () => {
         const { storeIds, ...prodData } = product;
@@ -511,6 +512,7 @@ export function useUpdateProduct() {
       stock_quantity: number;
       sku?: string;
       storeIds?: string[];
+      image_url?: string;
     }) => {
       const { id, storeIds, ...prodData } = input;
       if (isLocalId(id)) {
